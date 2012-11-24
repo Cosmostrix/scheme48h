@@ -2,11 +2,19 @@
 module Main where
 import System.Environment
 import Text.ParserCombinators.Parsec hiding (spaces)
+import Control.Monad
 
 main :: IO ()
 main = do
   args <- getArgs
   putStrLn (readExpr $ args !! 0)
+
+data LispVal = Atom String
+             | List [LispVal]
+             | DottedList [LispVal] LispVal
+             | Number Integer
+             | String String
+             | Bool Bool
 
 spaces :: Parser ()
 spaces = skipMany1 space
@@ -14,11 +22,34 @@ spaces = skipMany1 space
 symbol :: Parser Char
 symbol = oneOf "!#$%&|*+-/:<=>?@^_~"
 
+parseAtom :: Parser LispVal
+parseAtom = do first <- letter <|> symbol
+               rest <- many (letter <|> digit <|> symbol)
+               let atom = first : rest
+               return $ case atom of
+                          "#t" -> Bool True
+                          "#f" -> Bool False
+                          _    -> Atom atom
+
+parseNumber :: Parser LispVal
+parseNumber = liftM (Number . read) $ many1 digit
+
+parseString :: Parser LispVal
+parseString = do char '"'
+                 x <- many (noneOf "\"")
+                 char '"'
+                 return $ String x
+
+parseExpr :: Parser LispVal
+parseExpr = parseAtom <|> parseNumber <|> parseString
+
 readExpr :: String -> String
-readExpr input = case parse (spaces >> symbol) "lisp" input of
+readExpr input = case parse parseExpr "lisp" input of
                    Left err -> "No match: " ++ show err
                    Right val -> "Found value"
 
 -- ghc -package parsec -o simple_parser.exe --make simple-parser.hs
--- simple_parser "   $"
--- simple_parser "   a"
+-- simple_parser "\"this is a string\""
+-- simple_parser 25
+-- simple_parser symbol
+-- simple_parser (symbol)
