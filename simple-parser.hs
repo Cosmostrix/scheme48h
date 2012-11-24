@@ -36,7 +36,7 @@ parseNumber = many1 digit >>= return . Number . read
 
 parseString :: Parser LispVal
 parseString = do char '"'
-                 x <- many (noneOf "\"")
+                 x <- many (noneOf "\"" <|> (char '\\' >> char '"'))
                  char '"'
                  return $ String x
 
@@ -50,6 +50,5 @@ readExpr input = case parse parseExpr "lisp" input of
 
 -- ghc -package parsec -o simple_parser.exe --make simple-parser.hs
 -- simple_parser "\"this is a string\""
--- simple_parser 25
--- simple_parser symbol
--- simple_parser (symbol)
+-- simple_parser "\"asdhj\\"kl;\""
+-- simple_parser "\"asdhj\\"kl;""
