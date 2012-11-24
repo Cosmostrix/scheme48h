@@ -5,6 +5,6 @@ import System.Environment
 main :: IO ()
 main = do
   args <- getArgs
-  putStrLn ("Hello, " ++ args !! 0)
+  putStrLn ("Hello, " ++ args !! 0 ++ args !! 1)
 
--- ghc -o hello.exe --make Hello.hs && hello world!
+-- ghc -o hello.exe --make Hello.hs && hello world! !!!!
