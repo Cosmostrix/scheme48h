@@ -8,14 +8,17 @@ main = do
   args <- getArgs
   putStrLn (readExpr $ args !! 0)
 
+spaces :: Parser ()
+spaces = skipMany1 space
+
 symbol :: Parser Char
 symbol = oneOf "!#$%&|*+-/:<=>?@^_~"
 
 readExpr :: String -> String
-readExpr input = case parse symbol "lisp" input of
+readExpr input = case parse (spaces >> symbol) "lisp" input of
                    Left err -> "No match: " ++ show err
                    Right val -> "Found value"
 
 -- ghc -package parsec -o simple_parser.exe --make simple-parser.hs
--- simple_parser $
--- simple_parser a
+-- simple_parser "   $"
+-- simple_parser "   a"
