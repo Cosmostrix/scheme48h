@@ -3,6 +3,7 @@ module Main where
 import System.Environment
 import Text.ParserCombinators.Parsec hiding (spaces)
 import Control.Monad
+import Numeric
 
 main :: IO ()
 main = do
@@ -15,31 +16,39 @@ data LispVal = Atom String
              | Number Integer
              | String String
              | Bool Bool
+             deriving Show
 
 spaces :: Parser ()
 spaces = skipMany1 space
 
 symbol :: Parser Char
 symbol = oneOf "!#$%&|*+-/:<=>?@^_~"
+symbol1 :: Parser Char
+symbol1 = oneOf "!$%&|*+-/:<=>?@^_~"
 
 parseAtom :: Parser LispVal
-parseAtom = do first <- letter <|> symbol
+parseAtom = do first <- letter <|> symbol1
                rest <- many (letter <|> digit <|> symbol)
-               let atom = first : rest
-               return $ case atom of
-                          "#t" -> Bool True
-                          "#f" -> Bool False
-                          _    -> Atom atom
+               return . Atom $ first : rest
+               
+parseBool :: Parser LispVal
+parseBool = liftM Bool ((char 't' >> return True)
+                         <|> (char 'f' >> return False))
+parseNum :: Parser LispVal
+parseNum = liftM (Number . fst . head . readDec) $ many1 digit
 
 parseNumber :: Parser LispVal
-parseNumber = (parseNum <|> (char '#' >>
-                (parseBits <|> parseOct <|> parseDigit <|> parseHex))
-              ) >>= return . Number . read
-  where parseNum = many1 digit
-        parseBits  = char 'b' >> many1 (char '0' <|> char '1')
-        parseOct   = char 'o' >> many1 octDigit
-        parseDigit = char 'd' >> many1 digit
-        parseHex   = char 'x' >> many1 hexDigit
+parseNumber = liftM (Number . fst . head)
+                (parseBin <|> parseOct <|> parseDig <|> parseHex)
+  where 
+        parseBin = liftM readBin $ char 'b' >> many1 (char '0' <|> char '1')
+        parseOct = liftM readOct $ char 'o' >> many1 octDigit
+        parseDig = liftM readDec $ char 'd' >> many1 digit
+        parseHex = liftM readHex $ char 'x' >> many1 hexDigit
+        readBin  = readInt 2 (\x->x=='0'||x=='1') (\x->if x=='0' then 0 else 1)
+
+parseSharpSyntax :: Parser LispVal
+parseSharpSyntax = char '#' >> (parseBool <|> parseNumber)
 
 parseString :: Parser LispVal
 parseString = do char '"'
@@ -48,12 +57,12 @@ parseString = do char '"'
                  return $ String x
 
 parseExpr :: Parser LispVal
-parseExpr = parseNumber <|> parseAtom <|> parseString
+parseExpr = parseSharpSyntax <|> parseNum <|> parseAtom <|> parseString
 
 readExpr :: String -> String
 readExpr input = case parse parseExpr "lisp" input of
                    Left err -> "No match: " ++ show err
-                   Right val -> "Found value"
+                   Right val -> "Found value: " ++ show val
 
 -- ghc -package parsec -o simple_parser.exe --make simple-parser.hs
 -- simple_parser 01234567890
