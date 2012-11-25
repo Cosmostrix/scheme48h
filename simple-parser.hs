@@ -16,6 +16,7 @@ data LispVal = Atom String
              | Number Integer
              | String String
              | Bool Bool
+             | Character Char
              deriving Show
 
 spaces :: Parser ()
@@ -34,6 +35,7 @@ parseAtom = do first <- letter <|> symbol1
 parseBool :: Parser LispVal
 parseBool = liftM Bool ((char 't' >> return True)
                          <|> (char 'f' >> return False))
+
 parseNum :: Parser LispVal
 parseNum = liftM (Number . fst . head . readDec) $ many1 digit
 
@@ -48,13 +50,19 @@ parseNumber = liftM (Number . fst . head)
         readBin  = readInt 2 (\x->x=='0'||x=='1') (\x->if x=='0' then 0 else 1)
 
 parseSharpSyntax :: Parser LispVal
-parseSharpSyntax = char '#' >> (parseBool <|> parseNumber)
+parseSharpSyntax = char '#' >> (parseBool <|> parseNumber <|> parseCharacter)
 
 parseString :: Parser LispVal
 parseString = do char '"'
                  x <- many (noneOf "\"" <|> (char '\\' >> oneOf "\"nrt\\"))
                  char '"'
                  return $ String x
+
+parseCharacter :: Parser LispVal
+parseCharacter = liftM Character (char '\\' >>
+                   option ' ' ((string "space" >> return ' ')
+                                <|> (string "newline" >> return '\n')
+                                <|> anyChar))
 
 parseExpr :: Parser LispVal
 parseExpr = parseSharpSyntax <|> parseNum <|> parseAtom <|> parseString
@@ -65,8 +73,8 @@ readExpr input = case parse parseExpr "lisp" input of
                    Right val -> "Found value: " ++ show val
 
 -- ghc -package parsec -o simple_parser.exe --make simple-parser.hs
--- simple_parser 01234567890
--- simple_parser #b1010
--- simple_parser #o1234567
--- simple_parser #d999999
--- simple_parser #x1abcdef
+-- simple_parser #\
+-- simple_parser #\space
+-- simple_parser #\newline
+-- simple_parser #\a
+-- simple_parser #\A
