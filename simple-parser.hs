@@ -32,7 +32,14 @@ parseAtom = do first <- letter <|> symbol
                           _    -> Atom atom
 
 parseNumber :: Parser LispVal
-parseNumber = many1 digit >>= return . Number . read
+parseNumber = (parseNum <|> (char '#' >>
+                (parseBits <|> parseOct <|> parseDigit <|> parseHex))
+              ) >>= return . Number . read
+  where parseNum = many1 digit
+        parseBits  = char 'b' >> many1 (char '0' <|> char '1')
+        parseOct   = char 'o' >> many1 octDigit
+        parseDigit = char 'd' >> many1 digit
+        parseHex   = char 'x' >> many1 hexDigit
 
 parseString :: Parser LispVal
 parseString = do char '"'
@@ -41,7 +48,7 @@ parseString = do char '"'
                  return $ String x
 
 parseExpr :: Parser LispVal
-parseExpr = parseAtom <|> parseNumber <|> parseString
+parseExpr = parseNumber <|> parseAtom <|> parseString
 
 readExpr :: String -> String
 readExpr input = case parse parseExpr "lisp" input of
@@ -49,5 +56,8 @@ readExpr input = case parse parseExpr "lisp" input of
                    Right val -> "Found value"
 
 -- ghc -package parsec -o simple_parser.exe --make simple-parser.hs
--- simple_parser "\"this is a string\""
--- simple_parser "\"\\n \\t \\r \\\\\""
+-- simple_parser 01234567890
+-- simple_parser #b1010
+-- simple_parser #o1234567
+-- simple_parser #d999999
+-- simple_parser #x1abcdef
