@@ -36,17 +36,23 @@ parseBool :: Parser LispVal
 parseBool = liftM Bool ((char 't' >> return True)
                          <|> (char 'f' >> return False))
 
+parseSigned :: (Real r) => ReadS r -> Parser Char -> Parser r
+parseSigned reader lexer = liftM (fst . head . readSigned reader) (do
+  sign <- char '-' <|> return '0'
+  num <- many1 lexer
+  return (sign : num))
+
 parseNum :: Parser LispVal
-parseNum = liftM (Number . fst . head . readDec) $ many1 digit
+parseNum = liftM Number $ parseSigned readDec digit
 
 parseNumber :: Parser LispVal
-parseNumber = liftM (Number . fst . head)
+parseNumber = liftM Number
                 (parseBin <|> parseOct <|> parseDig <|> parseHex)
   where 
-        parseBin = liftM readBin $ char 'b' >> many1 (char '0' <|> char '1')
-        parseOct = liftM readOct $ char 'o' >> many1 octDigit
-        parseDig = liftM readDec $ char 'd' >> many1 digit
-        parseHex = liftM readHex $ char 'x' >> many1 hexDigit
+        parseBin = char 'b' >> parseSigned readBin (char '0' <|> char '1')
+        parseOct = char 'o' >> parseSigned readOct octDigit
+        parseDig = char 'd' >> parseSigned readDec digit
+        parseHex = char 'x' >> parseSigned readHex hexDigit
         readBin  = readInt 2 (\x->x=='0'||x=='1') (\x->if x=='0' then 0 else 1)
 
 parseSharpSyntax :: Parser LispVal
