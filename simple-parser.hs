@@ -17,6 +17,7 @@ data LispVal = Atom String
              | String String
              | Bool Bool
              | Character Char
+             | Float Double
              deriving Show
 
 spaces :: Parser ()
@@ -36,23 +37,30 @@ parseBool :: Parser LispVal
 parseBool = liftM Bool ((char 't' >> return True)
                          <|> (char 'f' >> return False))
 
-parseSigned :: (Real r) => ReadS r -> Parser Char -> Parser r
+parseSigned :: (Real r) => ReadS r -> Parser [Char] -> Parser r
 parseSigned reader lexer = liftM (fst . head . readSigned reader) (do
   sign <- char '-' <|> return '0'
-  num <- many1 lexer
+  num <- lexer
   return (sign : num))
 
+lexFloat :: Parser [Char]
+lexFloat = do x <- many1 digit
+              char '.'
+              y <- many digit
+              return $ x ++ "." ++ y
+
 parseNum :: Parser LispVal
-parseNum = liftM Number $ parseSigned readDec digit
+parseNum = try (liftM Float $ parseSigned readFloat lexFloat)
+           <|> (liftM Number $ parseSigned readDec (many1 digit))
 
 parseNumber :: Parser LispVal
 parseNumber = liftM Number
                 (parseBin <|> parseOct <|> parseDig <|> parseHex)
   where 
-        parseBin = char 'b' >> parseSigned readBin (char '0' <|> char '1')
-        parseOct = char 'o' >> parseSigned readOct octDigit
-        parseDig = char 'd' >> parseSigned readDec digit
-        parseHex = char 'x' >> parseSigned readHex hexDigit
+        parseBin = char 'b' >> parseSigned readBin (many1 $ oneOf "01")
+        parseOct = char 'o' >> parseSigned readOct (many1 octDigit)
+        parseDig = char 'd' >> parseSigned readDec (many1 digit)
+        parseHex = char 'x' >> parseSigned readHex (many1 hexDigit)
         readBin  = readInt 2 (\x->x=='0'||x=='1') (\x->if x=='0' then 0 else 1)
 
 parseSharpSyntax :: Parser LispVal
