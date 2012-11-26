@@ -31,7 +31,7 @@ parseAtom :: Parser LispVal
 parseAtom = do first <- letter <|> symbol1
                rest <- many (letter <|> digit <|> symbol)
                return . Atom $ first : rest
-               
+
 parseBool :: Parser LispVal
 parseBool = liftM Bool ((char 't' >> return True)
                          <|> (char 'f' >> return False))
@@ -58,9 +58,17 @@ parseNumber = liftM Number
 parseSharpSyntax :: Parser LispVal
 parseSharpSyntax = char '#' >> (parseBool <|> parseNumber <|> parseCharacter)
 
+escapedChars :: Parser Char
+escapedChars = char '\\' >> oneOf "\\\"nrt" >>= \x ->
+               return $ case x of
+                 'n' -> '\n'
+                 'r' -> '\r'
+                 't' -> '\t'
+                 _ -> x
+
 parseString :: Parser LispVal
 parseString = do char '"'
-                 x <- many (noneOf "\"" <|> (char '\\' >> oneOf "\"nrt\\"))
+                 x <- many (escapedChars <|> noneOf "\"\\")
                  char '"'
                  return $ String x
 
@@ -68,7 +76,9 @@ parseCharacter :: Parser LispVal
 parseCharacter = liftM Character (char '\\' >>
                    option ' ' ((string "space" >> return ' ')
                                 <|> (string "newline" >> return '\n')
-                                <|> anyChar))
+                                <|> do { x <- anyChar;
+                                         notFollowedBy alphaNum;
+                                         return x}))
 
 parseExpr :: Parser LispVal
 parseExpr = parseSharpSyntax <|> parseNum <|> parseAtom <|> parseString
