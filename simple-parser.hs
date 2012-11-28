@@ -5,6 +5,7 @@ import Text.ParserCombinators.Parsec hiding (spaces)
 import Control.Monad
 import Numeric
 import Data.Ratio
+import Data.Complex
 
 main :: IO ()
 main = do
@@ -20,6 +21,7 @@ data LispVal = Atom String
              | Character Char
              | Float Double
              | Ratio Rational
+             | Complex (Complex Double)
              deriving Show
 
 spaces :: Parser ()
@@ -51,6 +53,12 @@ lexFloat = do x <- many1 digit
               y <- many digit
               return $ x ++ "." ++ y
 
+parseFloat :: Parser LispVal
+parseFloat = (liftM Float $ parseSigned readFloat lexFloat)
+
+parseDigits :: Parser LispVal
+parseDigits = (liftM Number $ parseSigned readDec (many1 digit))
+
 parseRatio :: Parser LispVal
 parseRatio = do
   x <- parseSigned readDec (many1 digit)
@@ -58,10 +66,22 @@ parseRatio = do
   y <- parseSigned readDec (many1 digit)
   return $ Ratio (x % y)
 
+toDouble :: LispVal -> Double
+toDouble (Number n) = fromIntegral n
+toDouble (Float f) = f
+
+parseComplex :: Parser LispVal
+parseComplex = do x <- (try parseFloat <|> parseDigits)
+                  char '+'
+                  y <- (try parseFloat <|> parseDigits)
+                  char 'i'
+                  return $ Complex (toDouble x :+ toDouble y)
+
 parseNum :: Parser LispVal
-parseNum = try parseRatio
-           <|> try (liftM Float $ parseSigned readFloat lexFloat)
-           <|> (liftM Number $ parseSigned readDec (many1 digit))
+parseNum = try parseComplex
+           <|> try parseRatio
+           <|> try parseFloat
+           <|> parseDigits
 
 parseNumber :: Parser LispVal
 parseNumber = liftM Number
@@ -112,4 +132,5 @@ readExpr input = case parse parseExpr "lisp" input of
 -- simple_parser -100000.001
 -- simple_parser \"\\\"\r\n\t\\\\\"
 -- simple_parser 3/-9
+-- simple_parser 10.9+-2.1i
 -- Err: \"\o\" Unexpected: 2.00/9 1/2.0
