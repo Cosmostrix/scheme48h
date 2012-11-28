@@ -118,8 +118,31 @@ parseCharacter = liftM Character (char '\\' >>
                                          notFollowedBy alphaNum;
                                          return x}))
 
+parseList :: Parser LispVal
+parseList = liftM List $ sepBy parseExpr spaces
+
+parseDottedList :: Parser LispVal
+parseDottedList = do
+  head <- endBy parseExpr spaces
+  tail <- char '.' >> spaces >> parseExpr
+  return $ DottedList head tail
+
+parseQuoted :: Parser LispVal
+parseQuoted = do
+  char '\''
+  x <- parseExpr
+  return $ List [Atom "quote", x]
+
+parens :: Parser a -> Parser a
+parens = between (char '(' >> skipMany space) (char ')')
+
 parseExpr :: Parser LispVal
-parseExpr = parseSharpSyntax <|> parseNum <|> parseAtom <|> parseString
+parseExpr = parseSharpSyntax
+        <|> parseNum
+        <|> parseAtom
+        <|> parseString
+        <|> parseQuoted
+        <|> parens (try parseList <|> parseDottedList)
 
 readExpr :: String -> String
 readExpr input = case parse parseExpr "lisp" input of
@@ -127,10 +150,9 @@ readExpr input = case parse parseExpr "lisp" input of
                    Right val -> "Found value: " ++ show val
 
 -- ghc -package parsec -o simple_parser.exe --make simple-parser.hs
--- simple_parser -5
--- simple_parser 99.99999
--- simple_parser -100000.001
--- simple_parser \"\\\"\r\n\t\\\\\"
--- simple_parser 3/-9
--- simple_parser 10.9+-2.1i
--- Err: \"\o\" Unexpected: 2.00/9 1/2.0
+-- simple_parser ()
+-- simple_parser (a)
+-- simple_parser "(1 '-0 i '(a b) 2/3)"
+-- simple_parser "(a (dotted . list) test)"
+-- simple_parser "(a '(quoted (dotted . list)) test)"
+-- simple_parser "(a '(imbalanced parens)" #=> Err
