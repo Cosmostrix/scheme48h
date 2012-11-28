@@ -4,6 +4,7 @@ import System.Environment
 import Text.ParserCombinators.Parsec hiding (spaces)
 import Control.Monad
 import Numeric
+import Data.Ratio
 
 main :: IO ()
 main = do
@@ -18,6 +19,7 @@ data LispVal = Atom String
              | Bool Bool
              | Character Char
              | Float Double
+             | Ratio Rational
              deriving Show
 
 spaces :: Parser ()
@@ -49,8 +51,16 @@ lexFloat = do x <- many1 digit
               y <- many digit
               return $ x ++ "." ++ y
 
+parseRatio :: Parser LispVal
+parseRatio = do
+  x <- parseSigned readDec (many1 digit)
+  char '/'
+  y <- parseSigned readDec (many1 digit)
+  return $ Ratio (x % y)
+
 parseNum :: Parser LispVal
-parseNum = try (liftM Float $ parseSigned readFloat lexFloat)
+parseNum = try parseRatio
+           <|> try (liftM Float $ parseSigned readFloat lexFloat)
            <|> (liftM Number $ parseSigned readDec (many1 digit))
 
 parseNumber :: Parser LispVal
@@ -97,8 +107,9 @@ readExpr input = case parse parseExpr "lisp" input of
                    Right val -> "Found value: " ++ show val
 
 -- ghc -package parsec -o simple_parser.exe --make simple-parser.hs
--- simple_parser #\
--- simple_parser #\space
--- simple_parser #\newline
--- simple_parser #\a
--- simple_parser #\A
+-- simple_parser -5
+-- simple_parser 99.99999
+-- simple_parser -100000.001
+-- simple_parser \"\\\"\r\n\t\\\\\"
+-- simple_parser 3/-9
+-- Err: \"\o\" Unexpected: 2.00/9 1/2.0
