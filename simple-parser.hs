@@ -124,13 +124,19 @@ parseCharacter = liftM Character (char '\\' >>
                                          return x}))
 
 parseList :: Parser LispVal
-parseList = liftM List $ sepBy parseExpr spaces
+parseList = do
+  body <- sepEndBy parseExpr spaces
+  if length body == 0 then return $ List []
+  else parseTail >>= \tail-> return $
+    case tail of
+      Just (List l)         -> List (body ++ l)
+      Just (DottedList h t) -> DottedList (body ++ h) t
+      Just val              -> DottedList body val
+      Nothing               -> List body
 
-parseDottedList :: Parser LispVal
-parseDottedList = do
-  head <- endBy parseExpr spaces
-  tail <- char '.' >> spaces >> parseExpr
-  return $ DottedList head tail
+parseTail :: Parser (Maybe LispVal)
+parseTail = liftM Just (char '.' >> skipMany space >> parseExpr)
+            <|> return Nothing
 
 makeSyntaxSugarParser :: Parser a -> String -> Parser LispVal
 makeSyntaxSugarParser ch symbol =
@@ -163,7 +169,7 @@ parseExpr = parseSharpSyntax
         <|> parseString
         <|> parseQuoted <|> parseQusaiquote
         <|> try parseUnquoteS <|> parseUnquote
-        <|> parens (try parseList <|> parseDottedList)
+        <|> parens parseList
 
 readExpr :: String -> String
 readExpr input = case parse parseExpr "lisp" input of
@@ -171,9 +177,5 @@ readExpr input = case parse parseExpr "lisp" input of
                    Right val -> "Found value: " ++ show val
 
 -- ghc -package parsec -o simple_parser.exe --make simple-parser.hs
--- simple_parser ()
--- simple_parser (a)
--- simple_parser "(1 '-0 i '(a b) 2/3)"
--- simple_parser "(a (dotted . list) test)"
--- simple_parser "(a '(quoted (dotted . list)) test)"
--- simple_parser "(a '(imbalanced parens)" #=> Err
+-- simple_parser () (a) "(a . a)" "(a . ())" "(a . (a . a))"
+-- simple_parser "(a a)" "(a a . a)" "(a a . ())" (a.(a.(a.())))
