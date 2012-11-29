@@ -6,6 +6,7 @@ import Control.Monad
 import Numeric
 import Data.Ratio
 import Data.Complex
+import Data.Array
 
 main :: IO ()
 main = do
@@ -22,6 +23,7 @@ data LispVal = Atom String
              | Float Double
              | Ratio Rational
              | Complex (Complex Double)
+             | Vector (Array Int LispVal)
              deriving Show
 
 spaces :: Parser ()
@@ -94,7 +96,10 @@ parseNumber = liftM Number
         readBin  = readInt 2 (\x->x=='0'||x=='1') (\x->if x=='0' then 0 else 1)
 
 parseSharpSyntax :: Parser LispVal
-parseSharpSyntax = char '#' >> (parseBool <|> parseNumber <|> parseCharacter)
+parseSharpSyntax = char '#' >> (parseBool
+                     <|> parseNumber
+                     <|> parseCharacter
+                     <|> parseVector)
 
 escapedChars :: Parser Char
 escapedChars = char '\\' >> oneOf "\\\"nrt" >>= \x ->
@@ -145,6 +150,11 @@ parseUnquoteS = makeSyntaxSugarParser (string ",@") "unquote-splicing"
 
 parens :: Parser a -> Parser a
 parens = between (char '(' >> skipMany space) (char ')')
+
+parseVector :: Parser LispVal
+parseVector = do
+  arrayValues <- parens (sepBy parseExpr spaces)
+  return $ Vector (listArray (0,(length arrayValues - 1)) arrayValues)
 
 parseExpr :: Parser LispVal
 parseExpr = parseSharpSyntax
