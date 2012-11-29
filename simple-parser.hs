@@ -127,11 +127,21 @@ parseDottedList = do
   tail <- char '.' >> spaces >> parseExpr
   return $ DottedList head tail
 
+makeSyntaxSugarParser :: Parser a -> String -> Parser LispVal
+makeSyntaxSugarParser ch symbol =
+  ch >> parseExpr >>= (\x -> return $ List [Atom symbol, x])
+  
 parseQuoted :: Parser LispVal
-parseQuoted = do
-  char '\''
-  x <- parseExpr
-  return $ List [Atom "quote", x]
+parseQuoted = makeSyntaxSugarParser (char '\'') "quote"
+
+parseQusaiquote :: Parser LispVal
+parseQusaiquote = makeSyntaxSugarParser (char '`') "qusaiquote"
+
+parseUnquote :: Parser LispVal
+parseUnquote = makeSyntaxSugarParser (char ',') "unquote"
+
+parseUnquoteS :: Parser LispVal
+parseUnquoteS = makeSyntaxSugarParser (string ",@") "unquote-splicing"
 
 parens :: Parser a -> Parser a
 parens = between (char '(' >> skipMany space) (char ')')
@@ -141,7 +151,8 @@ parseExpr = parseSharpSyntax
         <|> parseNum
         <|> parseAtom
         <|> parseString
-        <|> parseQuoted
+        <|> parseQuoted <|> parseQusaiquote
+        <|> try parseUnquoteS <|> parseUnquote
         <|> parens (try parseList <|> parseDottedList)
 
 readExpr :: String -> String
