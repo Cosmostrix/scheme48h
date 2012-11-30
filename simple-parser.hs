@@ -1,4 +1,4 @@
--- H24.11.24 17:30 toward Parsec
+-- H24.11.30 12:20 Evalution started!
 module Main where
 import System.Environment
 import Text.ParserCombinators.Parsec hiding (spaces)
@@ -24,7 +24,6 @@ data LispVal = Atom String
              | Ratio Rational
              | Complex (Complex Double)
              | Vector (Array Int LispVal)
-             deriving Show
 
 spaces :: Parser ()
 spaces = skipMany1 space
@@ -176,6 +175,20 @@ readExpr input = case parse parseExpr "lisp" input of
                    Left err -> "No match: " ++ show err
                    Right val -> "Found value: " ++ show val
 
+showVal :: LispVal -> String
+showVal (String contents) = "\"" ++ contents ++ "\""
+showVal (Atom name) = name
+showVal (Number contents) = show contents
+showVal (Bool True) = "#t"
+showVal (Bool False) = "#f"
+showVal (List contents) = "(" ++ unwordsList contents ++ ")"
+showVal (DottedList head tail) = "(" ++ unwordsList head
+                               ++ " . " ++ showVal tail ++ ")"
+unwordsList :: [LispVal] -> String
+unwordsList = unwords . map showVal
+
+instance Show LispVal where show = showVal
+
 -- ghc -package parsec -o simple_parser.exe --make simple-parser.hs
--- simple_parser () (a) "(a . a)" "(a . ())" "(a . (a . a))"
--- simple_parser "(a a)" "(a a . a)" "(a a . ())" (a.(a.(a.())))
+-- simple_parser "(1 2 2)"
+-- simple_parser "'(1 2 `(this \"one\"))"
