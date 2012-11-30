@@ -1,4 +1,4 @@
--- H24.11.30 12:20 Evalution started!
+-- H24.12.01 1:13 Parser is ready!
 module Main where
 import System.Environment
 import Text.ParserCombinators.Parsec hiding (spaces)
@@ -116,8 +116,8 @@ parseString = do char '"'
 
 parseCharacter :: Parser LispVal
 parseCharacter = liftM Character (char '\\' >>
-                   option ' ' ((string "space" >> return ' ')
-                                <|> (string "newline" >> return '\n')
+                   option ' ' (try (string "space" >> return ' ')
+                                <|> try (string "newline" >> return '\n')
                                 <|> do { x <- anyChar;
                                          notFollowedBy alphaNum;
                                          return x}))
@@ -179,16 +179,30 @@ showVal :: LispVal -> String
 showVal (String contents) = "\"" ++ contents ++ "\""
 showVal (Atom name) = name
 showVal (Number contents) = show contents
+showVal (Float contents) = showFFloat Nothing contents ""
+showVal (Ratio contents) = show (numerator contents) ++ "/"
+                         ++ show (denominator contents)
+showVal (Complex x) = showFFloat Nothing (realPart x) $ "+"
+                    ++ showFFloat Nothing (imagPart x) "i"
 showVal (Bool True) = "#t"
 showVal (Bool False) = "#f"
+showVal (Character '\n') = "#\\newline"
+showVal (Character ' ') = "#\\space"
+showVal (Character char) = "#\\" ++ [char]
 showVal (List contents) = "(" ++ unwordsList contents ++ ")"
 showVal (DottedList head tail) = "(" ++ unwordsList head
                                ++ " . " ++ showVal tail ++ ")"
+showVal (Vector contents) = "#(" ++ unwordsList (elems contents) ++ ")"
 unwordsList :: [LispVal] -> String
 unwordsList = unwords . map showVal
 
 instance Show LispVal where show = showVal
 
 -- ghc -package parsec -o simple_parser.exe --make simple-parser.hs
--- simple_parser "(1 2 2)"
--- simple_parser "'(1 2 `(this \"one\"))"
+-- simple_parser "#(a () (a.b) #())"
+-- simple_parser 9999999999999999999999999999999999999999999999999999999999999.0
+-- simple_parser -2/-20
+-- simple_parser.exe 0+0i
+-- simple_parser.exe #\
+-- simple_parser.exe #\newline
+-- simple_parser.exe #\n
