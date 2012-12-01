@@ -255,8 +255,13 @@ primitives = [ ("+", numericBinop (+)),
                ("string<?", strBoolBinop (<)),
                ("string>?", strBoolBinop (>)),
                ("string<=?", strBoolBinop (<=)),
-               ("string>=?", strBoolBinop (>=))
-
+               ("string>=?", strBoolBinop (>=)),
+               ("car", car),
+               ("cdr", cdr),
+               ("cons", cons),
+               ("eq?", eqv),
+               ("eqv?", eqv),
+               ("equal?", equal)
              ]
 
 numericBinop :: (Integer -> Integer -> Integer) -> [LispVal]
@@ -321,7 +326,7 @@ car :: [LispVal] -> ThrowsError LispVal
 car [List (x : xs)] = return x
 car [DottedList (x : xs) _] = return x
 car [badArg] = throwError $ TypeMismatch "pair" badArg
-car badArgList = throwError = throwError $ NumArgs 1 badArgList
+car badArgList = throwError $ NumArgs 1 badArgList
 
 cdr :: [LispVal] -> ThrowsError LispVal
 cdr [List (x : xs)] = return $ List xs
@@ -337,7 +342,7 @@ cons [x, DottedList xs xlast] = return $ DottedList (x : xs) xlast
 cons [x1, x2] = return $ DottedList [x1] x2
 cons badArgList = throwError $ NumArgs 2 badArgList
 
-eqv :: [LispVal] -> ThrowsErro LispVal
+eqv :: [LispVal] -> ThrowsError LispVal
 eqv [(Bool x), (Bool y)] = return $ Bool $ x == y
 eqv [(Number x), (Number y)] = return $ Bool $ x == y
 eqv [(String x), (String y)] = return $ Bool $ x == y
@@ -351,6 +356,23 @@ eqv [(List x), (List y)] =
                              Right (Bool val) -> val
 eqv [_, _] = return $ Bool False
 eqv badArgList = throwError $ NumArgs 2 badArgList
+
+data Unpacker = forall a. Eq a => AnyUnpacker (LispVal -> ThrowsError a)
+unpackEquals :: LispVal -> LispVal -> Unpacker -> ThrowsError Bool
+unpackEquals x y (AnyUnpacker unpacker) =
+  do
+    unpacked1 <- unpacker x
+    unpacked2 <- unpacker y
+    return $ unpacked1 == unpacked2
+  `catchError` (const $ return False)
+
+equal :: [LispVal] -> ThrowsError LispVal
+equal [x, y] = do
+  primitiveEquals <- liftM or $ mapM (unpackEquals x y)
+    [AnyUnpacker unpackNum, AnyUnpacker unpackStr, AnyUnpacker unpackBool]
+  eqvEquals <- eqv [x, y]
+  return $ Bool $ (primitiveEquals || let (Bool x) = eqvEquals in x)
+equal badArgList = throwError $ NumArgs 2 badArgList
 
 data LispError = NumArgs Integer [LispVal]
                | TypeMismatch String LispVal
@@ -382,6 +404,12 @@ trapError action = catchError action (return . show)
 extractValue :: ThrowsError a -> a
 extractValue (Right val) = val
 
--- ghc -package parsec -o 5basic-eval.exe --make 5basic-eval.hs
--- 5basic-eval "(if (> 2 3) \"no\" \"yes\")"
--- 5basic-eval "(if (= 3 3) (+ 2 3 (- 5 1)) \"unequal\")"
+-- ghc -package parsec -fglasgow-exts -o 5basic-eval.exe --make 5basic-eval.hs
+-- 5basic-eval "(cdr '(a simple test))"
+-- 5basic-eval "(car (cdr '(a simple test)))"
+-- 5basic-eval "(car '((this is) a test))"
+-- 5basic-eval "(cons '(this is) 'test)"
+-- 5basic-eval "(cons '(this is) '())"
+-- 5basic-eval "(eqv? 1 3)"
+-- 5basic-eval "(eqv? 3 3)"
+-- 5basic-eval "(eqv? 'atom 'atom)"
