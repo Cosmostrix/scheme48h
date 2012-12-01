@@ -348,8 +348,5 @@ extractValue :: ThrowsError a -> a
 extractValue (Right val) = val
 
 -- ghc -package parsec -o 5basic-eval.exe --make 5basic-eval.hs
--- 5basic-eval "(< 2 4)"
--- 5basic-eval "(> 2 4)"
--- 5basic-eval "(>= 3 3)"
--- 5basic-eval "(string=? \"test\"  \"test\")"
--- 5basic-eval "(string<? \"abc\" \"bba\")"
+-- 5basic-eval "(if (> 2 3) \"no\" \"yes\")"
+-- 5basic-eval "(if (= 3 3) (+ 2 3 (- 5 1)) \"unequal\")"
