@@ -214,7 +214,20 @@ primitives = [ ("+", numericBinop (+)),
                ("/", numericBinop div),
                ("mod", numericBinop mod),
                ("quotient", numericBinop quot),
-               ("remainder", numericBinop rem)
+               ("remainder", numericBinop rem),
+               ("boolean?", unaryOp booleanp),
+               ("symbol?", unaryOp symbolp),
+{-               ("char?", unaryOp charp),
+               ("vector?", unaryOp vectorp),
+--               ("procedure?", unaryOp procedurep),-}
+               ("pair?", unaryOp pairp),
+               ("number?", unaryOp numberp),{-
+               ("complex?", unaryOp complexp),
+               ("real?", unaryOp realp),
+               ("rational?", unaryOp rationalp),
+               ("integer?", unaryOp integerp),-}
+               ("string?", unaryOp stringp)
+--               ("port?", unaryOp portp),-}
              ]
 
 numericBinop :: (Integer -> Integer -> Integer) -> [LispVal] -> LispVal
@@ -222,12 +235,30 @@ numericBinop op params = Number $ foldl1 op $ map unpackNum params
 
 unpackNum :: LispVal -> Integer
 unpackNum (Number n) = n
-unpackNum (String n) = let parsed = reads n in
-                           if null parsed
-                              then 0
-                              else fst $ parsed !! 0
-unpackNum (List [n]) = unpackNum n
 unpackNum _ = 0
+
+unaryOp :: (LispVal -> LispVal) -> [LispVal] -> LispVal
+unaryOp f [v] = f v
+
+symbolp, numberp, stringp, booleanp, pairp :: LispVal -> LispVal
+symbolp (Atom _)   = Bool True
+symbolp _          = Bool False
+numberp (Number _) = Bool True
+numberp _          = Bool False
+stringp (String _) = Bool True
+stringp _          = Bool False
+booleanp (Bool _)  = Bool True
+booleanp   _       = Bool False
+pairp   (List _)   = Bool True
+pairp   (DottedList _ _) = Bool True
+pairp   _          = Bool False
+ 
+--booleanp, symbolp, charp, vectorp, {-procedurep,-}
+--  pairp, numberp, complexp, realp, rationalp, integerp, stringp{-, portp-} :: LispVal -> Bool
+--booleanp 
+
+
+
 
 -- ghc -package parsec -o 3simple_eval.exe --make 3simple-eval.hs
 -- 3simple_eval "(+ 2 2)"
