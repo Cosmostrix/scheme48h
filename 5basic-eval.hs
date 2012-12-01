@@ -205,6 +205,11 @@ eval val@(String _) = return val
 eval val@(Number _) = return val
 eval val@(Bool _) = return val
 eval (List [Atom "quote", val]) = return val
+eval (List [Atom "if", pred, conseq, alt]) = do
+  result <- eval pred
+  case result of
+    Bool False -> eval alt
+    otherwise -> eval conseq
 eval (List (Atom func : args)) = mapM eval args >>= apply func
 eval badForm = throwError $ BadSpecialForm "Unrecognized special form" badForm
 --eval v= String$show v
@@ -237,7 +242,21 @@ primitives = [ ("+", numericBinop (+)),
                ("string?", unaryOp stringp),
 --               ("port?", unaryOp portp),-}
                ("symbol->string", unaryOp symbol2string),
-               ("string->symbol", unaryOp string2symbol)
+               ("string->symbol", unaryOp string2symbol),
+               ("=", numBoolBinop (==)),
+               ("/=", numBoolBinop (/=)),
+               ("<", numBoolBinop (<)),
+               (">", numBoolBinop (>)),
+               ("<=", numBoolBinop (<=)),
+               (">=", numBoolBinop (>=)),
+               ("&&", boolBoolBinop (&&)),
+               ("||", boolBoolBinop (||)),
+               ("string=?", strBoolBinop (==)),
+               ("string<?", strBoolBinop (<)),
+               ("string>?", strBoolBinop (>)),
+               ("string<=?", strBoolBinop (<=)),
+               ("string>=?", strBoolBinop (>=))
+
              ]
 
 numericBinop :: (Integer -> Integer -> Integer) -> [LispVal]
@@ -272,7 +291,31 @@ string2symbol (String s) = Atom s
 string2symbol _          = Atom ""
 --booleanp, symbolp, charp, vectorp, {-procedurep,-}
 --  pairp, numberp, complexp, realp, rationalp, integerp, stringp{-, portp-} :: LispVal -> Bool
---booleanp 
+--booleanp
+
+boolBinop :: (LispVal -> ThrowsError a) -> (a -> a -> Bool)
+             -> [LispVal] -> ThrowsError LispVal
+boolBinop unpacker op args = if length args /= 2
+                             then throwError $ NumArgs 2 args
+                             else do left <- unpacker $ args !! 0
+                                     right <- unpacker $ args !! 1
+                                     return $ Bool $ left `op` right
+
+numBoolBinop = boolBinop unpackNum
+strBoolBinop = boolBinop unpackStr
+boolBoolBinop = boolBinop unpackBool
+
+unpackStr :: LispVal -> ThrowsError String
+unpackStr (String s) = return s
+unpackStr (Number s) = return $ show s
+unpackStr (Bool s) = return $ show s
+unpackStr notStr = throwError $ TypeMismatch "string" notStr
+
+unpackBool :: LispVal -> ThrowsError Bool
+unpackBool (Bool b) = return b
+unpackBool (Number 0) = return False
+unpackBool (Number 1) = return True
+unpackBool notBool = throwError $ TypeMismatch "boolean" notBool
 
 data LispError = NumArgs Integer [LispVal]
                | TypeMismatch String LispVal
@@ -304,7 +347,9 @@ trapError action = catchError action (return . show)
 extractValue :: ThrowsError a -> a
 extractValue (Right val) = val
 
--- ghc -package parsec -o 4errorcheck.exe --make 4errorcheck.hs
--- 4errorcheck "(+ 2 \"two\")"
--- 4errorcheck "(+ 2)"
--- 4errorcheck "(what? 2)"
+-- ghc -package parsec -o 5basic-eval.exe --make 5basic-eval.hs
+-- 5basic-eval "(< 2 4)"
+-- 5basic-eval "(> 2 4)"
+-- 5basic-eval "(>= 3 3)"
+-- 5basic-eval "(string=? \"test\"  \"test\")"
+-- 5basic-eval "(string<? \"abc\" \"bba\")"
