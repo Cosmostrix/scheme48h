@@ -10,7 +10,6 @@ import Data.Array
 import Control.Monad.Error
 
 main :: IO ()
-main = getArgs >>= print . eval . readExpr . head
 main = do
   args <- getArgs
   result <- return $ liftM show $ readExpr (args !! 0) >>= eval
@@ -241,16 +240,17 @@ primitives = [ ("+", numericBinop (+)),
                ("string->symbol", unaryOp string2symbol)
              ]
 
-numericBinop :: (Integer -> Integer -> Integer) -> [LispVal] -> LispVal
+numericBinop :: (Integer -> Integer -> Integer) -> [LispVal]
+                -> ThrowsError LispVal
 numericBinop op singleVal@[_] = throwError $ NumArgs 2 singleVal
 numericBinop op params = mapM unpackNum params >>= return . Number . foldl1 op
 
-unpackNum :: LispVal -> Integer
-unpackNum (Number n) = n
+unpackNum :: LispVal -> ThrowsError Integer
+unpackNum (Number n) = return n
 unpackNum nan = throwError $ TypeMismatch "number" nan
 
-unaryOp :: (LispVal -> LispVal) -> [LispVal] -> LispVal
-unaryOp f [v] = f v
+unaryOp :: (LispVal -> LispVal) -> [LispVal] -> ThrowsError LispVal
+unaryOp f [v] = return $ f v
 
 symbolp, numberp, stringp, booleanp, pairp :: LispVal -> LispVal
 symbolp (Atom _)   = Bool True
@@ -261,9 +261,9 @@ stringp (String _) = Bool True
 stringp _          = Bool False
 booleanp (Bool _)  = Bool True
 booleanp   _       = Bool False
-pairp   (List _)   = Bool True
-pairp   (DottedList _ _) = Bool True
-pairp   _          = Bool False
+pairp (List _)     = Bool True
+pairp (DottedList _ _) = Bool True
+pairp _            = Bool False
 
 symbol2string, string2symbol :: LispVal -> LispVal
 symbol2string (Atom s)   = String s
@@ -304,7 +304,7 @@ trapError action = catchError action (return . show)
 extractValue :: ThrowsError a -> a
 extractValue (Right val) = val
 
--- ghc -package parsec -o 3simple_eval.exe --make 3simple-eval.hs
--- 3simple_eval "(+ 2 2)"
--- 3simple_eval "(+ 2 (- 4 1))"
--- 3simple_eval "(- (+ 4 6 3) 3 5 2)"
+-- ghc -package parsec -o 4errorcheck.exe --make 4errorcheck.hs
+-- 4errorcheck "(+ 2 \"two\")"
+-- 4errorcheck "(+ 2)"
+-- 4errorcheck "(what? 2)"
