@@ -226,8 +226,10 @@ primitives = [ ("+", numericBinop (+)),
                ("real?", unaryOp realp),
                ("rational?", unaryOp rationalp),
                ("integer?", unaryOp integerp),-}
-               ("string?", unaryOp stringp)
+               ("string?", unaryOp stringp),
 --               ("port?", unaryOp portp),-}
+               ("symbol->string", unaryOp symbol2string),
+               ("string->symbol", unaryOp string2symbol)
              ]
 
 numericBinop :: (Integer -> Integer -> Integer) -> [LispVal] -> LispVal
@@ -252,6 +254,12 @@ booleanp   _       = Bool False
 pairp   (List _)   = Bool True
 pairp   (DottedList _ _) = Bool True
 pairp   _          = Bool False
+
+symbol2string, string2symbol :: LispVal -> LispVal
+symbol2string (Atom s)   = String s
+symbol2string _          = String ""
+string2symbol (String s) = Atom s
+string2symbol _          = Atom ""
  
 --booleanp, symbolp, charp, vectorp, {-procedurep,-}
 --  pairp, numberp, complexp, realp, rationalp, integerp, stringp{-, portp-} :: LispVal -> Bool
