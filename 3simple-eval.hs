@@ -1,4 +1,4 @@
--- H24.12.01 1:13 Parser is ready!
+-- H24.12.01 16:43 Eval Eval Eval!
 module Main where
 import System.Environment
 import Text.ParserCombinators.Parsec hiding (spaces)
