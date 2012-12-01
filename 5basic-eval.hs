@@ -317,6 +317,41 @@ unpackBool (Number 0) = return False
 unpackBool (Number 1) = return True
 unpackBool notBool = throwError $ TypeMismatch "boolean" notBool
 
+car :: [LispVal] -> ThrowsError LispVal
+car [List (x : xs)] = return x
+car [DottedList (x : xs) _] = return x
+car [badArg] = throwError $ TypeMismatch "pair" badArg
+car badArgList = throwError = throwError $ NumArgs 1 badArgList
+
+cdr :: [LispVal] -> ThrowsError LispVal
+cdr [List (x : xs)] = return $ List xs
+cdr [DottedList [xs] x] = return x
+cdr [DottedList (_ : xs) x] = return $ DottedList xs x
+cdr [badArg] = throwError $ TypeMismatch "pair" badArg
+cdr badArgList = throwError $ NumArgs 1 badArgList
+
+cons :: [LispVal] -> ThrowsError LispVal
+cons [x, List []] = return $ List [x]
+cons [x, List xs] = return $ List (x : xs)
+cons [x, DottedList xs xlast] = return $ DottedList (x : xs) xlast
+cons [x1, x2] = return $ DottedList [x1] x2
+cons badArgList = throwError $ NumArgs 2 badArgList
+
+eqv :: [LispVal] -> ThrowsErro LispVal
+eqv [(Bool x), (Bool y)] = return $ Bool $ x == y
+eqv [(Number x), (Number y)] = return $ Bool $ x == y
+eqv [(String x), (String y)] = return $ Bool $ x == y
+eqv [(Atom x), (Atom y)] = return $ Bool $ x == y
+eqv [(DottedList xs x), (DottedList ys y)] =
+    eqv [List $ xs ++ [x], List $ ys ++ [y]]
+eqv [(List x), (List y)] =
+    return $ Bool $ (length x == length y) && (all eqvPair $ zip x y)
+  where eqvPair (x1, x2) = case eqv [x1, x2] of
+                             Left err -> False
+                             Right (Bool val) -> val
+eqv [_, _] = return $ Bool False
+eqv badArgList = throwError $ NumArgs 2 badArgList
+
 data LispError = NumArgs Integer [LispVal]
                | TypeMismatch String LispVal
                | Parser ParseError
