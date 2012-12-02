@@ -1,4 +1,4 @@
--- H24.12.02 16:15 Evening with variables
+-- H24.12.02 22:30 Close it.
 module Main where
 import System.Environment
 import Text.ParserCombinators.Parsec hiding (spaces)
@@ -55,6 +55,9 @@ data LispVal = Atom String
              | Ratio Rational
              | Complex (Complex Double)
              | Vector (Array Int LispVal)
+             | PrimitiveFunc ([LispVal] -> ThrowsError LispVal)
+             | Func {params :: [String], vararg :: (Maybe String),
+                      body :: [LispVal], closure :: Env}
 
 spaces :: Parser ()
 spaces = skipMany1 space
@@ -224,6 +227,13 @@ showVal (List contents) = "(" ++ unwordsList contents ++ ")"
 showVal (DottedList head tail) = "(" ++ unwordsList head
                                ++ " . " ++ showVal tail ++ ")"
 showVal (Vector contents) = "#(" ++ unwordsList (elems contents) ++ ")"
+showVal (PrimitiveFunc _) = "<primitive>"
+showVal (Func {params = args, vararg = varargs, body = body, closure = env}) =
+  "(lambda (" ++ unwords (map show args) ++
+    (case varargs of
+       Nothing -> ""
+       Just arg -> " . " ++ arg) ++ ") ...)"
+
 unwordsList :: [LispVal] -> String
 unwordsList = unwords . map showVal
 
