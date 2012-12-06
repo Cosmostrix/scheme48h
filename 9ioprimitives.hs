@@ -591,15 +591,18 @@ readAll [String filename] = liftM List $ load filename
 
 -- ghc -package parsec -fglasgow-exts -o 9ioprim.exe --make 9ioprimitives.hs
 -- 9ioprim.exe
--- Lisp>>> (define (f x y) (+ x y))
--- Lisp>>> (f 1 2)
--- Lisp>>> (f 1 2 3)
--- Lisp>>> (f 1)
--- Lisp>>> (define (factorial x) (if (= x 1) 1 (* x (factorial (- x 1)))))
--- Lisp>>> (factorial 10)
--- Lisp>>> (define (counter inc) (lambda (x) (set! inc (+ x inc)) inc))
--- Lisp>>> (define my-count (counter 5))
--- Lisp>>> (my-count 3)
--- Lisp>>> (my-count 6)
--- Lisp>>> (my-count 5)
+-- Lisp>>> (write "Talk to the World")
+-- "Talk to the World"
+-- #t
+-- Lisp>>> (define f (open-output-file "stdlib.scm"))
+-- #<IO port>
+-- Lisp>>> (write "(write \"hello, world!\")" f)
+-- #t
+-- Lisp>>> (close-output-port f)
+-- #t
+-- # after editing stdlib.scm
+-- Lisp>>> (load "stdlib.scm")
+-- "hello, world"
+-- #t
 -- Lisp>>> quit
+-- 
